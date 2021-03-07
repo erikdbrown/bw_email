@@ -1,6 +1,9 @@
 from django.core.exceptions import ValidationError
 from django.core.validators import EmailValidator
-from django.http import HttpResponse
+from django.http import (
+    HttpResponse,
+    JsonResponse,
+)
 
 from email_server.models import Email
 
@@ -41,6 +44,19 @@ def deserialize_email(data):
     }
 
 
+def serialize_email(email):
+    return {
+        'id': email.pk,
+        'to': email.to_email,
+        'to_name': email.to_name,
+        'from': email.from_email,
+        'from_name': email.from_name,
+        'subject': email.subject,
+        'body': email.body,
+        'status': email.status,
+    }
+
+
 def handle_email_request(request):
     if request.method != 'POST':
         return HttpResponse(status=HTTP_405_METHOD_NOT_ALLOWED)
@@ -48,6 +64,6 @@ def handle_email_request(request):
     try:
         email_data = deserialize_email(request.POST)
         email = Email.objects.create(**email_data)
-        return HttpResponse()
+        return JsonResponse({'email': serialize_email(email)})
     except ValidationError as error:
         return HttpResponse(error.message, status=HTTP_400_BAD_REQUEST)

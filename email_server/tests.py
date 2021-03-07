@@ -63,6 +63,16 @@ class PostEmailAPITestCase(TestCase):
         self.assertEqual(email.subject, valid_email['subject'])
         self.assertEqual(email.body, valid_email['body'])
 
+        response_data = response.json()['email']
+
+        self.assertIsNotNone(response_data.get('id'))
+        self.assertEqual(response_data['to'], valid_email['to'])
+        self.assertEqual(response_data['to_name'], valid_email['to_name'])
+        self.assertEqual(response_data['from'], valid_email['from'])
+        self.assertEqual(response_data['from_name'], valid_email['from_name'])
+        self.assertEqual(response_data['subject'], valid_email['subject'])
+        self.assertEqual(response_data['body'], valid_email['body'])
+
     def test_returns_400_with_invalid_email(self):
         email = self.create_email(to='not-an-email-address')
 

@@ -122,3 +122,5 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 EMAIL_PROVIDER = os.environ.get('EMAIL_PROVIDER', 'spendgrid')
+SPENDGRID_KEY = os.environ.get('SPENDGRID_KEY')
+SNAILGUN_KEY = os.environ.get('SNAILGUN_KEY')

@@ -1,5 +1,13 @@
 from django.conf import settings
 from django.db import models
+from django.dispatch import receiver
+from django.db import transaction
+from django.db.models.signals import post_save
+
+from email_server.services import (
+    SnailgunProvider,
+    SpendgridProvider,
+)
 
 
 class EmailProviders():
@@ -29,3 +37,19 @@ class Email(models.Model):
             self.provider = settings.EMAIL_PROVIDER
 
         super(Email, self).save(*args, **kwargs)
+
+
+@receiver(post_save, sender=Email)
+def send_to_email_provider(sender, instance, created, *args, **kwargs):
+    if not created:
+        return
+
+    if instance.provider == EmailProviders.SPENDGRID:
+        email_service = SpendgridProvider()
+    elif instance.provider == EmailProviders.SNAILGUN:
+        email_service = SnailgunProvider()
+    else:
+        return
+
+    # TODO: connect this to async queue
+    transaction.on_commit(lambda: email_service.send_request(instance.pk))
