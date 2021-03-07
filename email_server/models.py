@@ -15,6 +15,7 @@ class Email(models.Model):
     subject = models.TextField()
     body = models.TextField()
 
+    status = models.TextField()
     external_id = models.TextField()
     provider = models.TextField(
         choices=(
