@@ -1,6 +1,12 @@
 from django.test import (
     Client,
     TestCase,
+    override_settings,
+)
+
+from email_server.models import (
+    Email,
+    EmailProviders,
 )
 
 
@@ -43,11 +49,19 @@ class PostEmailAPITestCase(TestCase):
         self.assertEqual(delete_response.status_code, HTTP_405_NOT_ALLOWED)
 
     def test_returns_200_ok_when_email_post_validates(self):
-        response = self.client.post(
-            self.emails_endpoint,
-            data=self.create_email()
-        )
+        valid_email = self.create_email()
+
+        response = self.client.post(self.emails_endpoint, data=valid_email)
         self.assertEqual(response.status_code, HTTP_200_OK)
+
+        self.assertEqual(Email.objects.count(), 1)
+
+        email = Email.objects.get(to_email=valid_email['to'])
+        self.assertEqual(email.to_name, valid_email['to_name'])
+        self.assertEqual(email.from_email, valid_email['from'])
+        self.assertEqual(email.from_name, valid_email['from_name'])
+        self.assertEqual(email.subject, valid_email['subject'])
+        self.assertEqual(email.body, valid_email['body'])
 
     def test_returns_400_with_invalid_email(self):
         email = self.create_email(to='not-an-email-address')
@@ -58,6 +72,7 @@ class PostEmailAPITestCase(TestCase):
             response.content.decode('utf-8'),
             'Invalid "to" email address'
         )
+        self.assertEqual(Email.objects.count(), 0)
 
         email = self.create_email(**{'from': 'not-an-email-address'})
 
@@ -67,6 +82,7 @@ class PostEmailAPITestCase(TestCase):
             response.content.decode('utf-8'),
             'Invalid "from" email address'
         )
+        self.assertEqual(Email.objects.count(), 0)
 
     def test_returns_400_with_missing_parameters(self):
         email = self.create_email()
@@ -78,6 +94,7 @@ class PostEmailAPITestCase(TestCase):
             response.content.decode('utf-8'),
             'Missing required: to'
         )
+        self.assertEqual(Email.objects.count(), 0)
 
         del email['from_name']
         response = self.client.post(self.emails_endpoint, data=email)
@@ -86,3 +103,44 @@ class PostEmailAPITestCase(TestCase):
             response.content.decode('utf-8'),
             'Missing required: from_name, to'
         )
+        self.assertEqual(Email.objects.count(), 0)
+
+
+class EmailModelTestCase(TestCase):
+
+    @override_settings(EMAIL_PROVIDER=EmailProviders.SPENDGRID)
+    def test_uses_setting_to_set_spendgrid_provider(self):
+        email = Email.objects.create(
+            to_email='foo@email.com',
+            to_name='Foo Bar',
+            from_email='noreply@email.com',
+            from_name='Baz Qux',
+            subject='Important Email',
+            body='<p>Foo Bar Content</p>'
+        )
+        self.assertEqual(email.provider, EmailProviders.SPENDGRID)
+
+    @override_settings(EMAIL_PROVIDER=EmailProviders.SNAILGUN)
+    def test_uses_setting_to_set_snailgun_provider(self):
+        email = Email.objects.create(
+            to_email='foo@email.com',
+            to_name='Foo Bar',
+            from_email='noreply@email.com',
+            from_name='Baz Qux',
+            subject='Important Email',
+            body='<p>Foo Bar Content</p>'
+        )
+        self.assertEqual(email.provider, EmailProviders.SNAILGUN)
+
+    @override_settings(EMAIL_PROVIDER=EmailProviders.SNAILGUN)
+    def test_does_not_set_provider_if_already_set(self):
+        email = Email.objects.create(
+            provider=EmailProviders.SPENDGRID,
+            to_email='foo@email.com',
+            to_name='Foo Bar',
+            from_email='noreply@email.com',
+            from_name='Baz Qux',
+            subject='Important Email',
+            body='<p>Foo Bar Content</p>'
+        )
+        self.assertEqual(email.provider, EmailProviders.SPENDGRID)
